@@ -102,7 +102,7 @@ def main():
     if args.gpus == 0:
         devices = {'main': -1}
     else:
-        devices = {'worker'+str(i) for i in range(1, args.gpus)}
+        devices = {'worker'+str(i):i for i in range(1, args.gpus)}
         devices['main'] = 0
 
     updater = training.updaters.ParallelUpdater(
