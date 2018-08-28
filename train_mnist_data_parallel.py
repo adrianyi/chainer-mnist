@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import argparse
-import json
 
 import chainer
 import chainer.functions as F
@@ -68,6 +67,8 @@ def main():
                         help='Number of images in each mini-batch')
     parser.add_argument('--epoch', '-e', type=int, default=20,
                         help='Number of sweeps over the dataset to train')
+    parser.add_argument('--gpus', '-g', type=int, default=0,
+                        help='Number of GPUs to use. Default: 0')
     parser.add_argument('--out', '-o', default='result_parallel',
                         help='Directory to output the result')
     parser.add_argument('--resume', '-r', default='',
@@ -78,6 +79,7 @@ def main():
 
     args.out = get_logs_path(root=args.out)
 
+    print('# GPUs: {}'.format(args.gpus))
     print('# unit: {}'.format(args.unit))
     print('# Minibatch-size: {}'.format(args.batchsize))
     print('# epoch: {}'.format(args.epoch))
@@ -97,14 +99,11 @@ def main():
     # ParallelUpdater implements the data-parallel gradient computation on
     # multiple GPUs. It accepts "devices" argument that specifies which GPU to
     # use.
-    try:
-        config = os.environ['TF_CONFIG']
-        config = json.loads(config)
-        n_gpus = len(config['cluster']['worker'])
-        devices = {str(i) for i in range(1,n_gpus)}
+    if args.gpus == 0:
+        devices = {'main': -1}
+    else:
+        devices = {'worker'+str(i) for i in range(1, args.gpus)}
         devices['main'] = 0
-    except:
-        devices = {'main': 0}
 
     updater = training.updaters.ParallelUpdater(
         train_iter,
@@ -129,7 +128,6 @@ def main():
         chainer.serializers.load_npz(args.resume, trainer)
 
     trainer.run()
-
 
 if __name__ == '__main__':
     main()
