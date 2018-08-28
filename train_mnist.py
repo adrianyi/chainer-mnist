@@ -7,6 +7,35 @@ import chainer.links as L
 from chainer import training
 from chainer.training import extensions
 
+import numpy as np
+from datetime import datetime
+from tb_chainer import SummaryWriter, name_scope, within_name_scope, utils
+
+from clusterone import get_data_path, get_logs_path
+
+# TensorBoard Extension
+class TensorBoardReport(chainer.training.Extension):
+    def __init__(self, out_dir):
+        self.writer = SummaryWriter(out_dir)
+
+    def __call__(self, trainer):
+        observations = trainer.observation
+        n_iter = trainer.updater.iteration
+        for n, v in observations.items():
+            if isinstance(v, chainer.Variable):
+                value = v.data
+            # elif isinstance(v, chainer.cuda.cupy.ndarray):
+            elif isinstance(v, chainer.backends.cuda.ndarray):
+                value = chainer.cuda.to_cpu(v)
+            else:
+                value = v
+
+            self.writer.add_scalar(n, value, n_iter)
+
+        # Optimizer
+        link = trainer.updater.get_optimizer('main').target
+        for name, param in link.namedparams():
+            self.writer.add_histogram(name, chainer.cuda.to_cpu(param.data), n_iter)
 
 # Network definition
 class MLP(chainer.Chain):
@@ -19,11 +48,15 @@ class MLP(chainer.Chain):
             self.l2 = L.Linear(None, n_units)  # n_units -> n_units
             self.l3 = L.Linear(None, n_out)  # n_units -> n_out
 
+    @within_name_scope('MLP')
     def forward(self, x):
-        h1 = F.relu(self.l1(x))
-        h2 = F.relu(self.l2(h1))
-        return self.l3(h2)
-
+        with name_scope('linear1', self.l1.params()):
+            h1 = F.relu(self.l1(x))
+        with name_scope('linear2', self.l2.params()):
+            h2 = F.relu(self.l2(h1))
+        with name_scope('linear3', self.l3.params()):
+            o = self.l3(h2)
+        return o
 
 def main():
     parser = argparse.ArgumentParser(description='Chainer example: MNIST')
@@ -44,6 +77,8 @@ def main():
     parser.add_argument('--noplot', dest='plot', action='store_false',
                         help='Disable PlotReport extension')
     args = parser.parse_args()
+
+    args.out = get_logs_path(root=args.out)
 
     print('GPU: {}'.format(args.gpu))
     print('# unit: {}'.format(args.unit))
@@ -100,6 +135,9 @@ def main():
                 ['main/accuracy', 'validation/main/accuracy'],
                 'epoch', file_name='accuracy.png'))
 
+    # TensorBoard
+    trainer.extend(TensorBoardReport(args.out))
+
     # Print selected entries of the log to stdout
     # Here "main" refers to the target link of the "main" optimizer again, and
     # "validation" refers to the default name of the Evaluator extension.
@@ -119,6 +157,7 @@ def main():
     # Run the training
     trainer.run()
 
+    writer.close()
 
 if __name__ == '__main__':
     main()
