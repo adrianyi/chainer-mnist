@@ -119,7 +119,7 @@ def main():
     trainer.extend(extensions.dump_graph('main/loss'))
     trainer.extend(extensions.snapshot(), trigger=(args.epoch, 'epoch'))
     trainer.extend(extensions.LogReport())
-    trainer.extend(TensorBoardReport(args.out), trigger=(100, 'epoch'))
+    trainer.extend(TensorBoardReport(args.out))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'main/loss', 'validation/main/loss',
          'main/accuracy', 'validation/main/accuracy', 'elapsed_time']))
