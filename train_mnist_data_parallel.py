@@ -78,13 +78,12 @@ def main():
 
     args.out = get_logs_path(root=args.out)
 
-    print('GPU: {}, {}'.format(args.gpu0, args.gpu1))
     print('# unit: {}'.format(args.unit))
     print('# Minibatch-size: {}'.format(args.batchsize))
     print('# epoch: {}'.format(args.epoch))
     print('')
 
-    chainer.backends.cuda.get_device_from_id(args.gpu0).use()
+    chainer.backends.cuda.get_device_from_id(0).use()
 
     model = L.Classifier(MLP(args.unit, 10))
     optimizer = chainer.optimizers.Adam()
@@ -116,7 +115,7 @@ def main():
     )
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
 
-    trainer.extend(extensions.Evaluator(test_iter, model, device=args.gpu0))
+    trainer.extend(extensions.Evaluator(test_iter, model, device=0))
     trainer.extend(extensions.dump_graph('main/loss'))
     trainer.extend(extensions.snapshot(), trigger=(args.epoch, 'epoch'))
     trainer.extend(extensions.LogReport())
