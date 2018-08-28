@@ -1,0 +1,4 @@
+chainer
+clusterone
+numpy
+tensorboard-chainer
