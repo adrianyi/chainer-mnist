@@ -1,4 +1,5 @@
 chainer
 clusterone
 numpy
+pillow
 tensorboard-chainer
